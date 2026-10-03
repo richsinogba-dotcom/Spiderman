@@ -1,0 +1,2056 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Spider-Man — The Web of Destiny</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+
+  <!-- Hero artwork (preloaded so the LCP image is ready before first paint) -->
+  <link rel="preload" as="image" href="spiderman-hero.jpg" fetchpriority="high" />
+
+  <!-- GSAP & ScrollTrigger -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollToPlugin.min.js"></script>
+
+  <style>
+    /* ══════════════════════════════════════════════════════════
+       RESET & BASE
+    ══════════════════════════════════════════════════════════ */
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --red: #e23636;
+      --red-glow: #ff1a1a;
+      --dark: #0a0a0a;
+      --darker: #050505;
+      --panel-bg: #111;
+      --text: #f0f0f0;
+      --text-muted: #888;
+      --web-color: rgba(200, 200, 200, 0.12);
+      --accent: #e23636;
+    }
+
+    html {
+      scroll-behavior: auto;
+      overflow-x: hidden;
+      scrollbar-width: thin;
+      scrollbar-color: var(--red) var(--darker);
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--darker);
+      color: var(--text);
+      overflow-x: hidden;
+      cursor: default;
+    }
+
+    ::selection {
+      background: var(--red);
+      color: #fff;
+    }
+
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--darker); }
+    ::-webkit-scrollbar-thumb { background: var(--red); border-radius: 3px; }
+
+    /* ══════════════════════════════════════════════════════════
+       LOADING SCREEN
+    ══════════════════════════════════════════════════════════ */
+    #loader {
+      position: fixed; inset: 0; z-index: 10000;
+      background: var(--darker);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      transition: opacity 0.8s ease, visibility 0.8s ease;
+    }
+    #loader.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+
+    .loader-spider {
+      width: 80px; height: 80px;
+      position: relative;
+    }
+    .loader-spider svg { width: 100%; height: 100%; }
+    .loader-spider svg path { fill: var(--red); }
+
+    .loader-bar-wrap {
+      width: 200px; height: 2px;
+      background: rgba(255,255,255,0.08);
+      margin-top: 30px; border-radius: 1px;
+      overflow: hidden;
+    }
+    .loader-bar {
+      height: 100%; width: 0%;
+      background: var(--red);
+      border-radius: 1px;
+      animation: loadBar 2s ease-in-out forwards;
+    }
+    @keyframes loadBar { to { width: 100%; } }
+
+    .loader-text {
+      font-family: 'Oswald', sans-serif;
+      font-size: 11px; letter-spacing: 6px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-top: 18px;
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       CUSTOM CURSOR
+    ══════════════════════════════════════════════════════════ */
+    .cursor-dot {
+      width: 8px; height: 8px;
+      background: var(--red);
+      border-radius: 50%;
+      position: fixed; top: 0; left: 0;
+      pointer-events: none; z-index: 9999;
+      mix-blend-mode: difference;
+      transition: transform 0.1s ease;
+    }
+    .cursor-ring {
+      width: 36px; height: 36px;
+      border: 1.5px solid rgba(226,54,54,0.4);
+      border-radius: 50%;
+      position: fixed; top: 0; left: 0;
+      pointer-events: none; z-index: 9998;
+      transition: transform 0.25s ease, width 0.3s, height 0.3s, border-color 0.3s;
+    }
+    .cursor-ring.hover {
+      width: 56px; height: 56px;
+      border-color: var(--red);
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       NAV
+    ══════════════════════════════════════════════════════════ */
+    nav {
+      position: fixed; top: 0; left: 0; width: 100%; z-index: 1000;
+      padding: 24px 48px;
+      display: flex; align-items: center; justify-content: space-between;
+      background: linear-gradient(to bottom, rgba(5,5,5,0.9), transparent);
+      transition: background 0.4s;
+    }
+    nav.scrolled {
+      background: rgba(5,5,5,0.95);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+
+    .nav-logo {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 22px; letter-spacing: 4px;
+      color: var(--red);
+      text-decoration: none;
+      display: flex; align-items: center; gap: 12px;
+    }
+    .nav-logo svg { width: 28px; height: 28px; }
+    .nav-logo svg path { fill: var(--red); }
+
+    .nav-links { display: flex; gap: 32px; list-style: none; }
+    .nav-links a {
+      font-family: 'Oswald', sans-serif;
+      font-size: 12px; font-weight: 400;
+      letter-spacing: 3px; text-transform: uppercase;
+      color: var(--text-muted);
+      text-decoration: none;
+      position: relative;
+      transition: color 0.3s;
+    }
+    .nav-links a::after {
+      content: '';
+      position: absolute; bottom: -4px; left: 0;
+      width: 0; height: 1px;
+      background: var(--red);
+      transition: width 0.3s ease;
+    }
+    .nav-links a:hover { color: var(--text); }
+    .nav-links a:hover::after { width: 100%; }
+
+    /* ══════════════════════════════════════════════════════════
+       HERO SECTION
+    ══════════════════════════════════════════════════════════ */
+    #hero {
+      position: relative;
+      height: 100vh; min-height: 700px;
+      display: flex; align-items: center; justify-content: center;
+      overflow: hidden;
+      background: var(--darker);
+    }
+
+    /* Animated comic panel background */
+    .comic-bg {
+      position: absolute; inset: 0; z-index: 1;
+      overflow: hidden;
+    }
+    .comic-panel {
+      position: absolute;
+      background: var(--panel-bg);
+      border: 1px solid rgba(255,255,255,0.06);
+      overflow: hidden;
+      transition: transform 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+    }
+    .comic-panel .panel-inner {
+      width: 100%; height: 100%;
+      background-size: cover;
+      background-position: center;
+      filter: grayscale(1) contrast(1.3) brightness(0.35);
+      transition: filter 0.5s ease;
+    }
+    .comic-panel:hover .panel-inner {
+      filter: grayscale(0) contrast(1.1) brightness(0.6);
+    }
+    .comic-panel::after {
+      content: '';
+      position: absolute; inset: 0;
+      background: linear-gradient(135deg,
+        rgba(226,54,54,0.03) 0%,
+        transparent 60%
+      );
+    }
+
+    /* Halftone overlay */
+    .halftone-overlay {
+      position: absolute; inset: 0; z-index: 2;
+      background-image: radial-gradient(circle, rgba(255,255,255,0.02) 1px, transparent 1px);
+      background-size: 4px 4px;
+      pointer-events: none;
+    }
+
+    /* Vignette */
+    .vignette {
+      position: absolute; inset: 0; z-index: 3;
+      background: radial-gradient(ellipse at center,
+        transparent 30%,
+        rgba(5,5,5,0.6) 70%,
+        rgba(5,5,5,0.95) 100%
+      );
+      pointer-events: none;
+    }
+
+    /* Foreground web layer */
+    .web-layer {
+      position: absolute; inset: 0; z-index: 4;
+      pointer-events: none;
+      opacity: 0.08;
+    }
+
+    /* Spider-Man character */
+    .hero-character {
+      position: relative; z-index: 5;
+      width: auto;
+      text-align: center;
+    }
+    .character-silhouette {
+      position: relative;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    /* ── Hero poster artwork (spiderman-hero.jpg, 675×1200) ── */
+    .hero-poster {
+      position: relative;
+      margin: 0;
+      height: min(66vh, 720px);
+      width: auto;
+      max-width: 78vw;
+      aspect-ratio: 675 / 1200;
+    }
+    /* the artwork box — masked + floating, so the image can never override it */
+    .hero-poster__art {
+      position: absolute;
+      inset: 0;
+      /* dissolve the poster's bottom edge into the hero background */
+      -webkit-mask-image: linear-gradient(to bottom, #000 56%, rgba(0,0,0,0.4) 82%, transparent 98%);
+          mask-image: linear-gradient(to bottom, #000 56%, rgba(0,0,0,0.4) 82%, transparent 98%);
+      animation: posterFloat 7s ease-in-out infinite alternate;
+    }
+    .hero-poster__img {
+      display: block;
+      width: 100%; height: 100%;
+      object-fit: cover;
+      object-position: center top;
+      filter: contrast(1.06) saturate(1.08);
+    }
+    /* soft red aura behind the artwork */
+    .hero-poster::before {
+      content: '';
+      position: absolute;
+      inset: -14% -26% -4%;
+      z-index: -1;
+      background: radial-gradient(ellipse at 50% 32%,
+        rgba(226,54,54,0.32) 0%,
+        rgba(226,54,54,0.11) 46%,
+        transparent 70%
+      );
+      pointer-events: none;
+    }
+
+    @keyframes posterFloat {
+      0%   { transform: translate3d(0, 0, 0) scale(1); }
+      100% { transform: translate3d(0, -12px, 0) scale(1.015); }
+    }
+
+    /* CSS Spider-Man figure */
+    .spiderman-figure {
+      position: relative;
+      width: 280px; height: 440px;
+    }
+
+    .sm-body {
+      position: absolute;
+      bottom: 0; left: 50%; transform: translateX(-50%);
+      width: 140px; height: 320px;
+      background: linear-gradient(180deg,
+        #1a1a2e 0%, #16213e 30%, #0f0f23 100%
+      );
+      border-radius: 70px 70px 40px 40px;
+      box-shadow:
+        0 0 60px rgba(226,54,54,0.15),
+        inset 0 0 40px rgba(226,54,54,0.05);
+    }
+    .sm-body::before {
+      content: '';
+      position: absolute; inset: 0;
+      border-radius: inherit;
+      background:
+        repeating-linear-gradient(
+          0deg,
+          transparent,
+          transparent 8px,
+          rgba(226,54,54,0.06) 8px,
+          rgba(226,54,54,0.06) 9px
+        ),
+        repeating-linear-gradient(
+          90deg,
+          transparent,
+          transparent 8px,
+          rgba(226,54,54,0.04) 8px,
+          rgba(226,54,54,0.04) 9px
+        );
+    }
+
+    .sm-head {
+      position: absolute;
+      top: 0; left: 50%; transform: translateX(-50%);
+      width: 100px; height: 110px;
+      background: linear-gradient(180deg,
+        var(--red) 0%, #b22020 70%, #8b1a1a 100%
+      );
+      border-radius: 50px 50px 45px 45px;
+      box-shadow:
+        0 0 40px rgba(226,54,54,0.3),
+        0 0 80px rgba(226,54,54,0.1);
+      overflow: hidden;
+    }
+    .sm-head::before {
+      content: '';
+      position: absolute; inset: 0;
+      background:
+        repeating-conic-gradient(
+          from 0deg at 50% 40%,
+          transparent 0deg,
+          transparent 8deg,
+          rgba(0,0,0,0.12) 8deg,
+          rgba(0,0,0,0.12) 10deg
+        );
+      border-radius: inherit;
+    }
+
+    /* Eyes */
+    .sm-eye {
+      position: absolute;
+      top: 38px;
+      width: 32px; height: 22px;
+      background: #fff;
+      border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+      box-shadow:
+        0 0 20px rgba(255,255,255,0.6),
+        0 0 40px rgba(255,255,255,0.2),
+        inset 0 0 6px rgba(200,200,200,0.3);
+      animation: eyeGlow 3s ease-in-out infinite alternate;
+    }
+    .sm-eye.left { left: 16px; transform: rotate(-8deg); }
+    .sm-eye.right { right: 16px; transform: rotate(8deg); }
+
+    @keyframes eyeGlow {
+      0% { box-shadow: 0 0 20px rgba(255,255,255,0.6), 0 0 40px rgba(255,255,255,0.2); }
+      100% { box-shadow: 0 0 30px rgba(200,220,255,0.9), 0 0 60px rgba(200,220,255,0.3); }
+    }
+
+    /* Arms crossed */
+    .sm-arm {
+      position: absolute;
+      width: 60px; height: 180px;
+      background: linear-gradient(180deg, #1a1a2e, #16213e);
+      border-radius: 30px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.5);
+    }
+    .sm-arm.left-arm {
+      top: 130px; left: 8px;
+      transform: rotate(25deg);
+    }
+    .sm-arm.right-arm {
+      top: 130px; right: 8px;
+      transform: rotate(-25deg);
+    }
+
+    /* Red suit accents on arms */
+    .sm-arm::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 40%;
+      background: linear-gradient(180deg, var(--red), #8b1a1a);
+      border-radius: 30px 30px 0 0;
+      opacity: 0.8;
+    }
+
+    /* Spider emblem */
+    .sm-emblem {
+      position: absolute;
+      top: 140px; left: 50%; transform: translateX(-50%);
+      z-index: 2;
+    }
+    .sm-emblem svg { width: 40px; height: 40px; }
+    .sm-emblem svg path {
+      fill: var(--red);
+      filter: drop-shadow(0 0 8px rgba(226,54,54,0.5));
+    }
+
+    /* Glow ring behind character */
+    .character-glow {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 400px; height: 400px;
+      border-radius: 50%;
+      background: radial-gradient(circle,
+        rgba(226,54,54,0.08) 0%,
+        transparent 70%
+      );
+      animation: glowPulse 4s ease-in-out infinite;
+    }
+    @keyframes glowPulse {
+      0%, 100% { transform: translate(-50%,-50%) scale(1); opacity: 0.6; }
+      50% { transform: translate(-50%,-50%) scale(1.1); opacity: 1; }
+    }
+
+    /* Hero text overlay */
+    .hero-content {
+      position: absolute; z-index: 6;
+      bottom: 12vh; left: 0; width: 100%;
+      text-align: center;
+      padding: 0 24px;
+    }
+    .hero-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(48px, 10vw, 120px);
+      line-height: 0.9;
+      letter-spacing: 6px;
+      color: #fff;
+      text-shadow:
+        0 0 40px rgba(226,54,54,0.3),
+        0 2px 8px rgba(0,0,0,0.8);
+    }
+    .hero-title span {
+      display: block;
+      color: var(--red);
+      text-shadow:
+        0 0 60px rgba(226,54,54,0.5),
+        0 0 120px rgba(226,54,54,0.2);
+    }
+    .hero-subtitle {
+      font-family: 'Oswald', sans-serif;
+      font-size: clamp(11px, 1.4vw, 15px);
+      font-weight: 300;
+      letter-spacing: 8px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-top: 20px;
+    }
+
+    /* Scroll indicator */
+    .scroll-indicator {
+      position: absolute; bottom: 30px; left: 50%;
+      transform: translateX(-50%);
+      z-index: 6;
+      display: flex; flex-direction: column;
+      align-items: center; gap: 8px;
+      opacity: 0.5;
+      animation: scrollBounce 2s ease-in-out infinite;
+    }
+    .scroll-indicator span {
+      font-family: 'Oswald', sans-serif;
+      font-size: 10px; letter-spacing: 4px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+    .scroll-line {
+      width: 1px; height: 40px;
+      background: linear-gradient(to bottom, var(--red), transparent);
+    }
+    @keyframes scrollBounce {
+      0%, 100% { transform: translateX(-50%) translateY(0); }
+      50% { transform: translateX(-50%) translateY(8px); }
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       SECTION COMMON
+    ══════════════════════════════════════════════════════════ */
+    section {
+      position: relative;
+      overflow: hidden;
+    }
+
+    .section-label {
+      font-family: 'Oswald', sans-serif;
+      font-size: 10px;
+      font-weight: 400;
+      letter-spacing: 6px;
+      text-transform: uppercase;
+      color: var(--red);
+      margin-bottom: 16px;
+    }
+
+    .section-heading {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(36px, 6vw, 80px);
+      line-height: 1;
+      letter-spacing: 3px;
+      color: #fff;
+    }
+
+    .web-line-anim {
+      display: inline-block;
+      position: relative;
+      overflow: hidden;
+    }
+    .web-line-anim::after {
+      content: '';
+      position: absolute; bottom: 0; left: 0;
+      width: 100%; height: 1px;
+      background: var(--red);
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform 0.8s cubic-bezier(0.23, 1, 0.32, 1);
+    }
+    .web-line-anim.active::after {
+      transform: scaleX(1);
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       SECTION 2 — COMIC PANEL EXPLOSION
+    ══════════════════════════════════════════════════════════ */
+    #panel-section {
+      min-height: 200vh;
+      background: var(--darker);
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding-top: 15vh;
+    }
+
+    .panel-stage {
+      position: sticky;
+      top: 10vh;
+      width: 90vw; max-width: 1200px;
+      height: 80vh;
+      perspective: 1200px;
+    }
+
+    .explode-panel {
+      position: absolute;
+      background: var(--panel-bg);
+      border: 1px solid rgba(255,255,255,0.08);
+      overflow: hidden;
+      border-radius: 4px;
+      box-shadow:
+        0 8px 32px rgba(0,0,0,0.5),
+        0 0 0 1px rgba(255,255,255,0.03);
+      transition: box-shadow 0.4s;
+    }
+    .explode-panel:hover {
+      box-shadow:
+        0 12px 48px rgba(226,54,54,0.2),
+        0 0 0 1px rgba(226,54,54,0.2);
+    }
+
+    .explode-panel .ep-inner {
+      width: 100%; height: 100%;
+      display: flex; align-items: center; justify-content: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .panel-comic-art {
+      width: 100%; height: 100%;
+      position: absolute; inset: 0;
+      background-size: cover;
+      background-position: center;
+      filter: grayscale(1) contrast(1.2) brightness(0.4);
+      transition: filter 0.5s ease, transform 0.6s ease;
+    }
+    .explode-panel:hover .panel-comic-art {
+      filter: grayscale(0) contrast(1.1) brightness(0.7);
+      transform: scale(1.08);
+    }
+
+    /* Panels backed by real cover art rather than a gradient.
+       The 0.4/0.7 exposure above suits the near-black gradient placeholders but
+       crushes real artwork, so these get lifted while keeping the printed-comic
+       greyscale-at-rest treatment. */
+    .explode-panel--art .panel-comic-art {
+      filter: var(--art-rest, grayscale(1) contrast(1.15) brightness(0.85));
+    }
+    .explode-panel--art:hover .panel-comic-art {
+      filter: var(--art-hover, grayscale(0) contrast(1.05) brightness(1));
+    }
+
+    .panel-text-overlay {
+      position: relative; z-index: 2;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 18px; letter-spacing: 4px;
+      color: rgba(255,255,255,0.7);
+      text-shadow: 0 2px 12px rgba(0,0,0,0.8);
+      text-align: center;
+      padding: 12px;
+    }
+
+    .panel-number {
+      position: absolute; top: 8px; left: 10px;
+      font-family: 'Oswald', sans-serif;
+      font-size: 10px; letter-spacing: 2px;
+      color: var(--red);
+      opacity: 0.6;
+      z-index: 3;
+    }
+
+    /* Mask reveal overlay */
+    .mask-reveal {
+      position: absolute; inset: 0;
+      background: var(--darker);
+      z-index: 10;
+      transform-origin: left;
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       SECTION 3 — HORIZONTAL SCROLL (COMIC SPREAD)
+    ══════════════════════════════════════════════════════════ */
+    #horizontal-section {
+      overflow: hidden;
+      background: var(--dark);
+    }
+
+    .horizontal-wrapper {
+      display: flex;
+      width: fit-content;
+      will-change: transform;
+    }
+
+    .h-slide {
+      width: 100vw; height: 100vh;
+      flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .h-slide-content {
+      text-align: center;
+      max-width: 700px;
+      padding: 0 48px;
+      z-index: 2;
+    }
+
+    .h-slide-bg {
+      position: absolute; inset: 0;
+      opacity: 0.06;
+      pointer-events: none;
+    }
+
+    .h-slide-number {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 200px;
+      color: rgba(226,54,54,0.04);
+      position: absolute;
+      right: 10vw; top: 50%;
+      transform: translateY(-50%);
+      line-height: 1;
+    }
+
+    .h-slide .section-heading {
+      font-size: clamp(32px, 5vw, 64px);
+      margin-bottom: 20px;
+    }
+
+    .h-slide p {
+      font-size: 15px; line-height: 1.7;
+      color: var(--text-muted);
+      max-width: 500px;
+      margin: 0 auto;
+    }
+
+    /* Swinging Spider-Man animation for horizontal section */
+    .swing-figure {
+      position: absolute;
+      width: 120px; height: 200px;
+      z-index: 3;
+    }
+    .web-string {
+      position: absolute;
+      top: -200px; left: 50%;
+      width: 1px; height: 200px;
+      background: linear-gradient(to bottom, rgba(200,200,200,0.4), rgba(200,200,200,0.1));
+      transform-origin: top;
+    }
+
+    /* Divider line between slides */
+    .h-divider {
+      width: 1px; height: 60vh;
+      background: linear-gradient(to bottom, transparent, rgba(226,54,54,0.3), transparent);
+      flex-shrink: 0;
+      align-self: center;
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       SECTION 4 — INTERACTIVE GALLERY
+    ══════════════════════════════════════════════════════════ */
+    #gallery-section {
+      min-height: 100vh;
+      background: var(--darker);
+      padding: 15vh 5vw;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .gallery-header {
+      text-align: center;
+      margin-bottom: 8vh;
+    }
+
+    .gallery-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      width: 100%;
+      max-width: 1100px;
+    }
+
+    .gallery-card {
+      position: relative;
+      aspect-ratio: 3/4;
+      border-radius: 6px;
+      overflow: hidden;
+      cursor: pointer;
+      border: 1px solid rgba(255,255,255,0.05);
+      transition: transform 0.5s cubic-bezier(0.23, 1, 0.32, 1),
+                  box-shadow 0.5s ease;
+    }
+    .gallery-card:hover {
+      transform: translateY(-8px) scale(1.02);
+      box-shadow:
+        0 20px 60px rgba(226,54,54,0.2),
+        0 0 0 1px rgba(226,54,54,0.3);
+      z-index: 2;
+    }
+
+    /* Stagger the middle column for a hand-pinned spread feel */
+    .gallery-card:nth-child(2) { transform: translateY(30px); }
+    .gallery-card:nth-child(5) { transform: translateY(30px); }
+    .gallery-card:hover:nth-child(2),
+    .gallery-card:hover:nth-child(5) { transform: translateY(22px) scale(1.02); }
+
+    .card-bg {
+      position: absolute; inset: 0;
+      background-size: cover;
+      background-position: center;
+      filter: grayscale(1) brightness(0.3);
+      transition: filter 0.6s ease, transform 0.6s ease;
+    }
+    .gallery-card:hover .card-bg {
+      filter: grayscale(0) brightness(0.6);
+      transform: scale(1.1);
+    }
+
+    /* Cards backed by real cover art rather than a gradient.
+       Kept out of grayscale so the artwork's red survives at rest. */
+    .card-bg--image {
+      /* cover art is 9:16 in a 3:4 card, so ~25% of the height gets cropped.
+         Each cover frames its subject differently — tune per card with --art-pos.
+         Exposure varies hugely between covers, so --art-bright / --art-sat are
+         per-card too; the hover values scale off them so the dim->bloom ratio
+         stays identical no matter how each one is exposed. */
+      background-position: center var(--art-pos, 28%);
+      filter:
+        saturate(var(--art-sat, 0.55))
+        brightness(var(--art-bright, 0.72))
+        contrast(var(--art-contrast, 1.12));
+      background-color: #0a0a0a;
+    }
+    .gallery-card:hover .card-bg--image {
+      filter:
+        saturate(calc(var(--art-sat, 0.55) * 2.1))
+        brightness(calc(var(--art-bright, 0.72) * 1.38))
+        contrast(1.05);
+    }
+
+    .card-overlay {
+      position: absolute; inset: 0;
+      background: linear-gradient(to top,
+        rgba(5,5,5,0.92) 0%,
+        rgba(5,5,5,0.32) 42%,
+        rgba(5,5,5,0.08) 100%
+      );
+      z-index: 1;
+    }
+
+    .card-content {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      padding: 20px;
+      z-index: 2;
+      transform: translateY(10px);
+      opacity: 0;
+      transition: transform 0.4s ease, opacity 0.4s ease;
+    }
+    .gallery-card:hover .card-content {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    .card-issue {
+      font-family: 'Oswald', sans-serif;
+      font-size: 10px; letter-spacing: 3px;
+      color: var(--red);
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    .card-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 22px; letter-spacing: 2px;
+      color: #fff;
+    }
+
+    /* Glow bar on hover */
+    .card-glow {
+      position: absolute; bottom: 0; left: 0;
+      width: 100%; height: 2px;
+      background: var(--red);
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+      z-index: 3;
+    }
+    .gallery-card:hover .card-glow {
+      transform: scaleX(1);
+    }
+
+    /* Reveal flash */
+    .card-flash {
+      position: absolute; inset: 0;
+      background: rgba(226,54,54,0.15);
+      opacity: 0;
+      z-index: 4;
+      transition: opacity 0.15s;
+    }
+    .gallery-card:hover .card-flash {
+      animation: flashIn 0.4s ease;
+    }
+    @keyframes flashIn {
+      0% { opacity: 0.6; }
+      100% { opacity: 0; }
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       SECTION 5 — PARALLAX DEPTH SECTION
+    ══════════════════════════════════════════════════════════ */
+    #parallax-section {
+      height: 150vh;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    .parallax-layer {
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    .parallax-bg {
+      z-index: 1;
+    }
+    .parallax-bg-inner {
+      width: 120vw; height: 120vh;
+      background:
+        radial-gradient(circle at 30% 40%, rgba(226,54,54,0.06) 0%, transparent 50%),
+        radial-gradient(circle at 70% 60%, rgba(226,54,54,0.04) 0%, transparent 50%);
+    }
+
+    .parallax-mid {
+      z-index: 2;
+    }
+    .parallax-mid-content {
+      text-align: center;
+      max-width: 800px;
+      padding: 0 48px;
+    }
+    .parallax-mid-content .section-heading {
+      font-size: clamp(40px, 7vw, 90px);
+      margin-bottom: 24px;
+    }
+    .parallax-mid-content p {
+      font-size: 16px; line-height: 1.8;
+      color: var(--text-muted);
+      max-width: 550px;
+      margin: 0 auto;
+    }
+
+    .parallax-fg {
+      z-index: 3;
+      pointer-events: none;
+    }
+
+    /* Foreground web strands */
+    .fg-web {
+      position: absolute;
+    }
+    .fg-web svg { width: 100%; height: 100%; }
+    .fg-web svg line {
+      stroke: rgba(200,200,200,0.06);
+      stroke-width: 1;
+    }
+
+    /* Stats row */
+    .stats-row {
+      display: flex; gap: 60px;
+      justify-content: center;
+      margin-top: 50px;
+      flex-wrap: wrap;
+    }
+    .stat-item { text-align: center; }
+    .stat-number {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 48px;
+      color: var(--red);
+      line-height: 1;
+    }
+    .stat-label {
+      font-family: 'Oswald', sans-serif;
+      font-size: 11px; letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-top: 6px;
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       SECTION 6 — FINAL SEQUENCE (LOGO FROM WEBS)
+    ══════════════════════════════════════════════════════════ */
+    #finale {
+      height: 100vh;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      background: var(--darker);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .finale-canvas-wrap {
+      position: absolute; inset: 0;
+      z-index: 1;
+    }
+    #webCanvas {
+      width: 100%; height: 100%;
+      display: block;
+    }
+
+    .finale-content {
+      position: relative; z-index: 2;
+      text-align: center;
+    }
+
+    .finale-logo {
+      width: 160px; height: 160px;
+      margin: 0 auto 30px;
+      opacity: 0;
+      transform: scale(0.5);
+      filter: drop-shadow(0 0 40px rgba(226,54,54,0.4));
+    }
+    .finale-logo svg {
+      width: 100%; height: 100%;
+    }
+    .finale-logo svg path {
+      fill: var(--red);
+      stroke: var(--red);
+      stroke-width: 0.5;
+      stroke-dasharray: 1000;
+      stroke-dashoffset: 1000;
+    }
+
+    .finale-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(28px, 5vw, 52px);
+      letter-spacing: 8px;
+      color: #fff;
+      opacity: 0;
+      transform: translateY(20px);
+    }
+
+    .finale-subtitle {
+      font-family: 'Oswald', sans-serif;
+      font-size: 12px; letter-spacing: 5px;
+      text-transform: uppercase;
+      color: var(--red);
+      margin-top: 12px;
+      opacity: 0;
+    }
+
+    /* Particles */
+    .particle {
+      position: absolute;
+      width: 2px; height: 2px;
+      background: var(--red);
+      border-radius: 50%;
+      opacity: 0;
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       FOOTER
+    ══════════════════════════════════════════════════════════ */
+    footer {
+      padding: 40px 48px;
+      border-top: 1px solid rgba(255,255,255,0.05);
+      display: flex; align-items: center; justify-content: space-between;
+      background: var(--darker);
+    }
+    footer p {
+      font-size: 11px; letter-spacing: 2px;
+      color: var(--text-muted);
+    }
+    footer a {
+      color: var(--red);
+      text-decoration: none;
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       RESPONSIVE
+    ══════════════════════════════════════════════════════════ */
+    @media (max-width: 900px) {
+      nav { padding: 16px 24px; }
+      .nav-links { display: none; }
+      .gallery-grid { grid-template-columns: repeat(2, 1fr); }
+      .gallery-card:nth-child(2),
+      .gallery-card:nth-child(5) { transform: none; }
+      .stats-row { gap: 30px; }
+      footer { flex-direction: column; gap: 12px; text-align: center; }
+    }
+    @media (max-width: 600px) {
+      /* poster: switch to width-driven sizing so the tall art never distorts */
+      .hero-poster {
+        height: auto;
+        width: min(64vw, 280px);
+      }
+      /* title was overflowing horizontally on narrow screens */
+      .hero-title {
+        font-size: clamp(34px, 9.2vw, 52px);
+        letter-spacing: 2px;
+      }
+      .hero-subtitle {
+        font-size: 10px;
+        letter-spacing: 3px;
+      }
+      .spiderman-figure { width: 200px; height: 320px; }
+      .sm-body { width: 100px; height: 240px; }
+      .sm-head { width: 75px; height: 85px; }
+      .sm-eye { width: 24px; height: 16px; top: 30px; }
+      .sm-eye.left { left: 12px; }
+      .sm-eye.right { right: 12px; }
+      .sm-arm { width: 45px; height: 140px; }
+      .sm-arm.left-arm { top: 95px; }
+      .sm-arm.right-arm { top: 95px; }
+      .gallery-grid { grid-template-columns: 1fr; gap: 20px; }
+      .gallery-card:nth-child(2),
+      .gallery-card:nth-child(5) { transform: none; }
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       UTILITY ANIMATIONS
+    ══════════════════════════════════════════════════════════ */
+    .reveal-up {
+      opacity: 0;
+      transform: translateY(40px);
+    }
+    .reveal-left {
+      opacity: 0;
+      transform: translateX(-40px);
+    }
+    .reveal-right {
+      opacity: 0;
+      transform: translateX(40px);
+    }
+    .reveal-scale {
+      opacity: 0;
+      transform: scale(0.9);
+    }
+
+    /* Web string decorations */
+    .web-decor {
+      position: absolute;
+      width: 1px;
+      background: linear-gradient(to bottom, var(--red), transparent);
+      opacity: 0.1;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ═══════════ LOADING SCREEN ═══════════ -->
+  <div id="loader">
+    <div class="loader-spider">
+      <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <path d="M50 10 L54 30 L70 18 L58 34 L80 30 L60 40 L90 45 L60 48 L90 55 L60 52 L80 70 L58 58 L70 82 L54 62 L50 90 L46 62 L30 82 L42 58 L20 70 L40 52 L10 55 L40 48 L10 45 L40 40 L20 30 L42 34 L30 18 L46 30 Z"/>
+      </svg>
+    </div>
+    <div class="loader-bar-wrap"><div class="loader-bar"></div></div>
+    <div class="loader-text">Initializing</div>
+  </div>
+
+  <!-- ═══════════ CUSTOM CURSOR ═══════════ -->
+  <div class="cursor-dot"></div>
+  <div class="cursor-ring"></div>
+
+  <!-- ═══════════ NAV ═══════════ -->
+  <nav>
+    <a href="#" class="nav-logo">
+      <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <path d="M50 10 L54 30 L70 18 L58 34 L80 30 L60 40 L90 45 L60 48 L90 55 L60 52 L80 70 L58 58 L70 82 L54 62 L50 90 L46 62 L30 82 L42 58 L20 70 L40 52 L10 55 L40 48 L10 45 L40 40 L20 30 L42 34 L30 18 L46 30 Z"/>
+      </svg>
+      SPIDER-MAN
+    </a>
+    <ul class="nav-links">
+      <li><a href="#hero">Origin</a></li>
+      <li><a href="#panel-section">Comics</a></li>
+      <li><a href="#horizontal-section">Legacy</a></li>
+      <li><a href="#gallery-section">Gallery</a></li>
+      <li><a href="#finale">Destiny</a></li>
+    </ul>
+  </nav>
+
+  <!-- ═══════════ HERO ═══════════ -->
+  <section id="hero">
+    <!-- Comic panel background -->
+    <div class="comic-bg" id="comicBg"></div>
+
+    <!-- Halftone overlay -->
+    <div class="halftone-overlay"></div>
+
+    <!-- Vignette -->
+    <div class="vignette"></div>
+
+    <!-- Web foreground layer -->
+    <svg class="web-layer" viewBox="0 0 1920 1080" preserveAspectRatio="none">
+      <defs>
+        <radialGradient id="webGrad" cx="50%" cy="50%">
+          <stop offset="0%" stop-color="rgba(255,255,255,0.15)"/>
+          <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+        </radialGradient>
+      </defs>
+      <!-- Radial web lines -->
+      <g stroke="rgba(200,200,200,0.08)" stroke-width="0.5" fill="none">
+        <line x1="960" y1="540" x2="0" y2="0"/>
+        <line x1="960" y1="540" x2="480" y2="0"/>
+        <line x1="960" y1="540" x2="960" y2="0"/>
+        <line x1="960" y1="540" x2="1440" y2="0"/>
+        <line x1="960" y1="540" x2="1920" y2="0"/>
+        <line x1="960" y1="540" x2="1920" y2="540"/>
+        <line x1="960" y1="540" x2="1920" y2="1080"/>
+        <line x1="960" y1="540" x2="960" y2="1080"/>
+        <line x1="960" y1="540" x2="0" y2="1080"/>
+        <line x1="960" y1="540" x2="0" y2="540"/>
+        <line x1="960" y1="540" x2="1440" y2="1080"/>
+        <line x1="960" y1="540" x2="480" y2="1080"/>
+        <!-- Concentric arcs -->
+        <circle cx="960" cy="540" r="120"/>
+        <circle cx="960" cy="540" r="260"/>
+        <circle cx="960" cy="540" r="420"/>
+        <circle cx="960" cy="540" r="600"/>
+        <circle cx="960" cy="540" r="800"/>
+      </g>
+    </svg>
+
+    <!-- Spider-Man Character -->
+    <div class="hero-character" id="heroCharacter">
+      <div class="character-glow"></div>
+      <div class="character-silhouette">
+        <figure class="hero-poster" id="heroPoster">
+          <div class="hero-poster__art">
+            <img
+              class="hero-poster__img"
+              id="spidermanPoster"
+              src="spiderman-hero.jpg"
+              alt="Spider-Man in his red and black suit, arms crossed, standing before a collage of classic Spider-Man comic covers"
+              width="675"
+              height="1200"
+              decoding="async"
+            />
+          </div>
+          </figure>
+      </div>
+    </div>
+
+    <!-- Hero text content -->
+    <div class="hero-content" id="heroContent">
+      <h1 class="hero-title">
+        <span>SPIDER-MAN</span>
+        THE WEB OF DESTINY
+      </h1>
+      <p class="hero-subtitle">With great power comes great responsibility</p>
+    </div>
+
+    <!-- Scroll indicator -->
+    <div class="scroll-indicator">
+      <span>Scroll</span>
+      <div class="scroll-line"></div>
+    </div>
+  </section>
+
+  <!-- ═══════════ COMIC PANEL EXPLOSION ═══════════ -->
+  <section id="panel-section">
+    <div class="panel-stage" id="panelStage">
+      <!-- Panels generated by JS -->
+    </div>
+  </section>
+
+  <!-- ═══════════ HORIZONTAL SCROLL ═══════════ -->
+  <section id="horizontal-section">
+    <div class="horizontal-wrapper" id="horizontalWrapper">
+      <!-- Slide 1 -->
+      <div class="h-slide">
+        <div class="h-slide-number">01</div>
+        <div class="h-slide-content">
+          <div class="section-label reveal-up">Chapter One</div>
+          <h2 class="section-heading reveal-up">THE BITE THAT<br/>CHANGED EVERYTHING</h2>
+          <p class="reveal-up">A radioactive spider. A moment of fate. Peter Parker's life was forever transformed, granting him abilities beyond human comprehension — strength, agility, and a sixth sense that whispers of danger.</p>
+        </div>
+        <div class="swing-figure" id="swing1" style="right: 8vw; top: 15vh;">
+          <div class="web-string"></div>
+          <div class="spiderman-figure" style="transform: scale(0.35) rotate(-15deg);">
+            <div class="sm-head"><div class="sm-eye left"></div><div class="sm-eye right"></div></div>
+            <div class="sm-body"></div>
+            <div class="sm-arm left-arm" style="transform: rotate(-45deg);"></div>
+            <div class="sm-arm right-arm" style="transform: rotate(60deg);"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="h-divider"></div>
+
+      <!-- Slide 2 -->
+      <div class="h-slide">
+        <div class="h-slide-number">02</div>
+        <div class="h-slide-content">
+          <div class="section-label reveal-up">Chapter Two</div>
+          <h2 class="section-heading reveal-up">WEAVING<br/>THROUGH THE CITY</h2>
+          <p class="reveal-up">New York's skyline became his playground. Between the concrete canyons and glass towers, Spider-Man found freedom — swinging from thread to thread, a red blur against the midnight sky, the city's silent guardian.</p>
+        </div>
+        <div class="swing-figure" id="swing2" style="left: 5vw; bottom: 10vh;">
+          <div class="web-string" style="transform: rotate(20deg);"></div>
+        </div>
+      </div>
+
+      <div class="h-divider"></div>
+
+      <!-- Slide 3 -->
+      <div class="h-slide">
+        <div class="h-slide-number">03</div>
+        <div class="h-slide-content">
+          <div class="section-label reveal-up">Chapter Three</div>
+          <h2 class="section-heading reveal-up">EVERY VILLAIN<br/>HAS A STORY</h2>
+          <p class="reveal-up">From the shadows they emerged — Green Goblin, Doc Ock, Venom — each a mirror reflecting what Peter could become without his moral compass. Every battle tested not just his strength, but his humanity.</p>
+        </div>
+      </div>
+
+      <div class="h-divider"></div>
+
+      <!-- Slide 4 -->
+      <div class="h-slide">
+        <div class="h-slide-number">04</div>
+        <div class="h-slide-content">
+          <div class="section-label reveal-up">Chapter Four</div>
+          <h2 class="section-heading reveal-up">ACROSS THE<br/>SPIDER-VERSE</h2>
+          <p class="reveal-up">The multiverse cracked open, revealing infinite Spider-People — each carrying the same burden, the same hope. Miles, Gwen, Miguel — connected by a web that transcends reality itself.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ PARALLAX DEPTH ═══════════ -->
+  <section id="parallax-section">
+    <!-- Background layer -->
+    <div class="parallax-layer parallax-bg" id="parallaxBg">
+      <div class="parallax-bg-inner"></div>
+    </div>
+
+    <!-- Mid-ground content -->
+    <div class="parallax-layer parallax-mid" id="parallaxMid">
+      <div class="parallax-mid-content">
+        <div class="section-label reveal-up">The Legacy Continues</div>
+        <h2 class="section-heading reveal-up">SIXTY YEARS OF<br/><span style="color: var(--red);">HEROISM</span></h2>
+        <p class="reveal-up">From the pages of Amazing Fantasy to the infinite canvas of the multiverse, Spider-Man endures as the most relatable hero ever created — because beneath the mask, he's just like us.</p>
+
+        <div class="stats-row">
+          <div class="stat-item reveal-up">
+            <div class="stat-number" data-count="1962">0</div>
+            <div class="stat-label">First Appearance</div>
+          </div>
+          <div class="stat-item reveal-up">
+            <div class="stat-number" data-count="900">0</div>
+            <div class="stat-label">Issues Published</div>
+          </div>
+          <div class="stat-item reveal-up">
+            <div class="stat-number" data-count="12">0</div>
+            <div class="stat-label">Film Adaptations</div>
+          </div>
+          <div class="stat-item reveal-up">
+            <div class="stat-number" data-count="1">∞</div>
+            <div class="stat-label">Spider-Verse</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Foreground web strands -->
+    <div class="parallax-layer parallax-fg" id="parallaxFg">
+      <svg class="fg-web" viewBox="0 0 1920 1080" preserveAspectRatio="none" style="width:100%;height:100%;">
+        <line x1="0" y1="200" x2="600" y2="800" stroke="rgba(226,54,54,0.06)" stroke-width="1"/>
+        <line x1="1920" y1="100" x2="1200" y2="900" stroke="rgba(226,54,54,0.04)" stroke-width="1"/>
+        <line x1="400" y1="0" x2="800" y2="1080" stroke="rgba(200,200,200,0.03)" stroke-width="0.5"/>
+        <line x1="1600" y1="0" x2="1100" y2="1080" stroke="rgba(200,200,200,0.03)" stroke-width="0.5"/>
+        <line x1="0" y1="600" x2="500" y2="300" stroke="rgba(226,54,54,0.05)" stroke-width="0.5"/>
+        <line x1="1920" y1="700" x2="1400" y2="200" stroke="rgba(226,54,54,0.04)" stroke-width="0.5"/>
+      </svg>
+    </div>
+  </section>
+
+  <!-- ═══════════ FINALE ═══════════ -->
+  <section id="finale">
+    <div class="finale-canvas-wrap">
+      <canvas id="webCanvas"></canvas>
+    </div>
+
+    <div class="finale-content" id="finaleContent">
+      <div class="finale-logo" id="finaleLogo">
+        <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+          <path d="M100 20 L108 60 L140 36 L116 68 L160 60 L120 80 L180 90 L120 96 L180 110 L120 104 L160 140 L116 116 L140 164 L108 124 L100 180 L92 124 L60 164 L84 116 L40 140 L80 104 L20 110 L80 96 L20 90 L80 80 L40 60 L84 68 L60 36 L92 60 Z" />
+        </svg>
+      </div>
+      <h2 class="finale-title" id="finaleTitle">THE WEB NEVER BREAKS</h2>
+      <p class="finale-subtitle" id="finaleSubtitle">Spider-Man — Forever Your Friendly Neighborhood Hero</p>
+    </div>
+
+    <!-- Particles -->
+    <div id="particles"></div>
+  </section>
+
+  <!-- ═══════════ FOOTER ═══════════ -->
+  <footer>
+    <p>A cinematic web experience — fan project</p>
+    <p>Built with <span style="color:var(--red);">♥</span> and webs</p>
+  </footer>
+
+
+  <!-- ═══════════════════════════════════════════════════════
+       JAVASCRIPT
+  ═══════════════════════════════════════════════════════════ -->
+  <script>
+    // ─── Register GSAP plugins ───
+    gsap.registerPlugin(ScrollTrigger);
+
+    // ─── DOM Ready ───
+    document.addEventListener('DOMContentLoaded', () => {
+      initLoader();
+      initCursor();
+      initNav();
+      generateComicPanels();
+      generateExplodePanels();
+      initHeroAnimations();
+      initPanelExplosion();
+      initHorizontalScroll();
+      initParallax();
+      initFinale();
+      initWebCanvas();
+      initRevealAnimations();
+      initCounters();
+    });
+
+    // ═══════════ LOADER ═══════════
+    function initLoader() {
+      const loader = document.getElementById('loader');
+      window.addEventListener('load', () => {
+        setTimeout(() => {
+          loader.classList.add('hidden');
+          document.body.style.overflow = '';
+          // Trigger hero entrance
+          heroEntrance();
+        }, 2200);
+      });
+    }
+
+    // ═══════════ CUSTOM CURSOR ═══════════
+    function initCursor() {
+      const dot = document.querySelector('.cursor-dot');
+      const ring = document.querySelector('.cursor-ring');
+      let mouseX = 0, mouseY = 0;
+      let ringX = 0, ringY = 0;
+
+      // Hide on touch devices
+      if ('ontouchstart' in window) {
+        dot.style.display = 'none';
+        ring.style.display = 'none';
+        return;
+      }
+
+      document.addEventListener('mousemove', e => {
+        mouseX = e.clientX;
+        mouseY = e.clientY;
+        dot.style.left = mouseX - 4 + 'px';
+        dot.style.top = mouseY - 4 + 'px';
+      });
+
+      function animateRing() {
+        ringX += (mouseX - ringX) * 0.15;
+        ringY += (mouseY - ringY) * 0.15;
+        ring.style.left = ringX - 18 + 'px';
+        ring.style.top = ringY - 18 + 'px';
+        requestAnimationFrame(animateRing);
+      }
+      animateRing();
+
+      // Hover effect on interactive elements
+      const hoverEls = document.querySelectorAll('a, button, .comic-panel, .explode-panel');
+      hoverEls.forEach(el => {
+        el.addEventListener('mouseenter', () => ring.classList.add('hover'));
+        el.addEventListener('mouseleave', () => ring.classList.remove('hover'));
+      });
+    }
+
+    // ═══════════ NAV ═══════════
+    function initNav() {
+      const nav = document.querySelector('nav');
+      window.addEventListener('scroll', () => {
+        nav.classList.toggle('scrolled', window.scrollY > 80);
+      });
+    }
+
+    // ═══════════ COMIC PANEL BACKGROUND (Hero) ═══════════
+    function generateComicPanels() {
+      const container = document.getElementById('comicBg');
+      const panelData = [
+        { x: '2%', y: '5%', w: '22%', h: '35%', rot: -2 },
+        { x: '26%', y: '2%', w: '18%', h: '28%', rot: 1 },
+        { x: '46%', y: '8%', w: '25%', h: '32%', rot: -1 },
+        { x: '73%', y: '3%', w: '25%', h: '38%', rot: 2 },
+        { x: '0%', y: '42%', w: '20%', h: '30%', rot: 1 },
+        { x: '22%', y: '35%', w: '24%', h: '35%', rot: -1.5 },
+        { x: '48%', y: '44%', w: '22%', h: '28%', rot: 0.5 },
+        { x: '72%', y: '45%', w: '28%', h: '32%', rot: -2 },
+        { x: '5%', y: '74%', w: '26%', h: '25%', rot: 1 },
+        { x: '33%', y: '72%', w: '20%', h: '28%', rot: -0.5 },
+        { x: '55%', y: '76%', w: '22%', h: '24%', rot: 1.5 },
+        { x: '79%', y: '78%', w: '20%', h: '22%', rot: -1 },
+      ];
+
+      const comicStyles = [
+        'linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 50%, #111 100%)',
+        'linear-gradient(45deg, #151515 0%, #252525 30%, #1a1a1a 100%)',
+        'linear-gradient(180deg, #202020 0%, #0f0f0f 100%)',
+        'linear-gradient(225deg, #1c1c1c 0%, #2d2d2d 40%, #0a0a0a 100%)',
+      ];
+
+      panelData.forEach((p, i) => {
+        const panel = document.createElement('div');
+        panel.className = 'comic-panel';
+        panel.style.cssText = `
+          left: ${p.x}; top: ${p.y};
+          width: ${p.w}; height: ${p.h};
+          transform: rotate(${p.rot}deg);
+        `;
+
+        const inner = document.createElement('div');
+        inner.className = 'panel-inner';
+        inner.style.background = comicStyles[i % comicStyles.length];
+
+        // Add comic-style pattern overlay
+        const pattern = document.createElement('div');
+        pattern.style.cssText = `
+          position: absolute; inset: 0;
+          background-image:
+            repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(255,255,255,0.02) 3px, rgba(255,255,255,0.02) 4px),
+            repeating-linear-gradient(90deg, transparent, transparent 3px, rgba(255,255,255,0.015) 3px, rgba(255,255,255,0.015) 4px);
+        `;
+
+        inner.appendChild(pattern);
+        panel.appendChild(inner);
+        container.appendChild(panel);
+
+        // Slow animation
+        gsap.to(panel, {
+          y: gsap.utils.random(-15, 15),
+          x: gsap.utils.random(-10, 10),
+          rotation: p.rot + gsap.utils.random(-1, 1),
+          duration: gsap.utils.random(6, 12),
+          ease: 'sine.inOut',
+          yoyo: true,
+          repeat: -1,
+        });
+      });
+    }
+
+    // ═══════════ HERO ENTRANCE ═══════════
+    function heroEntrance() {
+      const tl = gsap.timeline();
+
+      tl.from('#heroCharacter', {
+        opacity: 0,
+        scale: 0.85,
+        y: 60,
+        duration: 1.4,
+        ease: 'power3.out',
+      })
+      .from('.hero-title', {
+        opacity: 0,
+        y: 50,
+        duration: 1,
+        ease: 'power3.out',
+      }, '-=0.8')
+      .from('.hero-subtitle', {
+        opacity: 0,
+        y: 20,
+        duration: 0.8,
+        ease: 'power2.out',
+      }, '-=0.5')
+      .from('.scroll-indicator', {
+        opacity: 0,
+        y: 20,
+        duration: 0.6,
+        ease: 'power2.out',
+      }, '-=0.3');
+    }
+
+    // ═══════════ HERO SCROLL ANIMATIONS ═══════════
+    function initHeroAnimations() {
+      // Push-in effect on character
+      gsap.to('#heroCharacter', {
+        scale: 1.15,
+        y: -40,
+        scrollTrigger: {
+          trigger: '#hero',
+          start: 'top top',
+          end: 'bottom top',
+          scrub: 1,
+        },
+      });
+
+      // Parallax comic background
+      gsap.to('.comic-bg', {
+        y: -100,
+        scrollTrigger: {
+          trigger: '#hero',
+          start: 'top top',
+          end: 'bottom top',
+          scrub: 1,
+        },
+      });
+
+      // Poster artwork parallax (inner layer, slower than the outer push-in)
+      gsap.to('#heroPoster', {
+        y: 70,
+        ease: 'none',
+        scrollTrigger: {
+          trigger: '#hero',
+          start: 'top top',
+          end: 'bottom top',
+          scrub: 1,
+        },
+      });
+
+      // Fade out hero content
+      gsap.to('.hero-content', {
+        opacity: 0,
+        y: -60,
+        scrollTrigger: {
+          trigger: '#hero',
+          start: '60% top',
+          end: 'bottom top',
+          scrub: 1,
+        },
+      });
+
+      // Fade out scroll indicator
+      gsap.to('.scroll-indicator', {
+        opacity: 0,
+        scrollTrigger: {
+          trigger: '#hero',
+          start: '15% top',
+          end: '30% top',
+          scrub: 1,
+        },
+      });
+    }
+
+    // ═══════════ EXPLODING PANELS ═══════════
+    function generateExplodePanels() {
+      const stage = document.getElementById('panelStage');
+      // `art` (optional) replaces a panel's gradient with real cover artwork.
+      // `pos` is the background-position used to frame that art inside the panel.
+      const panels = [
+        { label: '#15', title: 'FIRST APPEARANCE', x: '5%',  y: '5%',  w: '28%', h: '45%',
+          art: 'spiderman-miles-ruang-edit.jpg', pos: '85% 60%', size: '175% auto' },
+        { label: '#33', title: 'THE FINAL CHAPTER', x: '36%', y: '0%',  w: '30%', h: '38%',
+          art: 'spiderman-25-cover.png', pos: 'center 32%' },
+        { label: '#50', title: 'SPIDER-MAN NO MORE', x: '69%', y: '5%',  w: '28%', h: '42%',
+          art: 'spiderman-white-hood.jpg', pos: 'center 20%',
+          rest: 'grayscale(1) contrast(1.4) brightness(0.38)',
+          hover: 'grayscale(0) saturate(1.2) contrast(1.15) brightness(0.58)' },
+        { label: '#121',title: 'THE NIGHT GWEN STACY DIED', x: '3%',  y: '53%', w: '32%', h: '42%' },
+        { label: '#252',title: 'THE BLACK SUIT', x: '38%', y: '42%', w: '26%', h: '52%',
+          art: 'spiderman-black-suit.jpg', pos: 'center 100%',
+          rest: 'grayscale(1) contrast(1.2) brightness(0.6)',
+          hover: 'grayscale(0) saturate(1.15) contrast(1.05) brightness(0.82)' },
+        { label: '#300',title: 'VENOM',  x: '67%', y: '50%', w: '30%', h: '46%' },
+      ];
+
+      const panelGrads = [
+        'linear-gradient(135deg, #1a0808, #2a0505)',
+        'linear-gradient(135deg, #0a0a1a, #1a1a2e)',
+        'linear-gradient(135deg, #080808, #1a1a1a)',
+        'linear-gradient(135deg, #0a1510, #051a0f)',
+        'linear-gradient(135deg, #050510, #101025)',
+        'linear-gradient(135deg, #0a0a0a, #151520)',
+      ];
+
+      panels.forEach((p, i) => {
+        const el = document.createElement('div');
+        el.className = 'explode-panel' + (p.art ? ' explode-panel--art' : '');
+        el.style.cssText = `
+          left: ${p.x}; top: ${p.y};
+          width: ${p.w}; height: ${p.h};
+          ${p.rest ? `--art-rest:${p.rest};` : ''}
+          ${p.hover ? `--art-hover:${p.hover};` : ''}
+        `;
+
+        // gradient by default; real artwork when the panel defines `art`.
+        // `size` lets a panel zoom past `cover` when the subject needs to
+        // dominate the frame rather than merely fit it.
+        const bg = p.art
+          ? `url('${p.art}') ${p.pos || 'center'} / ${p.size || 'cover'} no-repeat`
+          : panelGrads[i];
+
+        el.innerHTML = `
+          <div class="mask-reveal" data-idx="${i}"></div>
+          <div class="ep-inner">
+            <div class="panel-comic-art" style="background: ${bg};"></div>
+            <div class="panel-number">${p.label}</div>
+            <div class="panel-text-overlay">${p.title}</div>
+          </div>
+        `;
+        stage.appendChild(el);
+      });
+    }
+
+    // ═══════════ PANEL EXPLOSION ANIMATION ═══════════
+    function initPanelExplosion() {
+      const panels = document.querySelectorAll('.explode-panel');
+      const masks = document.querySelectorAll('.mask-reveal');
+
+      // Mask reveal animation
+      masks.forEach((mask, i) => {
+        gsap.to(mask, {
+          scaleX: 0,
+          scrollTrigger: {
+            trigger: '#panel-section',
+            start: () => `${10 + i * 8}% top`,
+            end: () => `${20 + i * 8}% top`,
+            scrub: 1,
+          },
+          ease: 'power2.inOut',
+        });
+      });
+
+      // Explode outward
+      const explodePositions = [
+        { x: -120, y: -80, rotation: -8, scale: 0.9 },
+        { x: 0, y: -100, rotation: 3, scale: 1.05 },
+        { x: 120, y: -60, rotation: 6, scale: 0.95 },
+        { x: -100, y: 80, rotation: -5, scale: 0.88 },
+        { x: 20, y: 100, rotation: -2, scale: 1.02 },
+        { x: 130, y: 70, rotation: 7, scale: 0.92 },
+      ];
+
+      panels.forEach((panel, i) => {
+        gsap.to(panel, {
+          x: explodePositions[i].x,
+          y: explodePositions[i].y,
+          rotation: explodePositions[i].rotation,
+          scale: explodePositions[i].scale,
+          scrollTrigger: {
+            trigger: '#panel-section',
+            start: '50% top',
+            end: '90% top',
+            scrub: 1,
+          },
+          ease: 'power2.out',
+        });
+      });
+    }
+
+    // ═══════════ HORIZONTAL SCROLL ═══════════
+    function initHorizontalScroll() {
+      const wrapper = document.getElementById('horizontalWrapper');
+      const slides = wrapper.querySelectorAll('.h-slide');
+      const dividers = wrapper.querySelectorAll('.h-divider');
+      const totalWidth = (slides.length * window.innerWidth) + (dividers.length * 1);
+
+      gsap.to(wrapper, {
+        x: () => -(totalWidth - window.innerWidth),
+        ease: 'none',
+        scrollTrigger: {
+          trigger: '#horizontal-section',
+          start: 'top top',
+          end: () => `+=${totalWidth}`,
+          scrub: 1,
+          pin: true,
+          anticipatePin: 1,
+          invalidateOnRefresh: true,
+        },
+      });
+
+      // Animate elements within each slide as they come into view
+      slides.forEach((slide, i) => {
+        const reveals = slide.querySelectorAll('.reveal-up');
+        gsap.from(reveals, {
+          opacity: 0,
+          y: 40,
+          stagger: 0.15,
+          duration: 1,
+          ease: 'power3.out',
+          scrollTrigger: {
+            trigger: slide,
+            containerAnimation: gsap.to(wrapper, {
+              x: () => -(totalWidth - window.innerWidth),
+              ease: 'none',
+            }),
+            start: 'left 80%',
+            toggleActions: 'play none none reverse',
+          },
+        });
+      });
+
+      // Animate swinging figures
+      const swing1 = document.getElementById('swing1');
+      if (swing1) {
+        gsap.to(swing1, {
+          rotation: 15,
+          y: -30,
+          duration: 3,
+          ease: 'sine.inOut',
+          yoyo: true,
+          repeat: -1,
+        });
+      }
+    }
+
+    // ═══════════ PARALLAX ═══════════
+    function initParallax() {
+      // Background moves slower
+      gsap.to('#parallaxBg', {
+        y: -150,
+        scrollTrigger: {
+          trigger: '#parallax-section',
+          start: 'top bottom',
+          end: 'bottom top',
+          scrub: 1,
+        },
+      });
+
+      // Foreground moves faster
+      gsap.to('#parallaxFg', {
+        y: 100,
+        scrollTrigger: {
+          trigger: '#parallax-section',
+          start: 'top bottom',
+          end: 'bottom top',
+          scrub: 1,
+        },
+      });
+    }
+
+    // ═══════════ FINALE ═══════════
+    function initFinale() {
+      const tl = gsap.timeline({
+        scrollTrigger: {
+          trigger: '#finale',
+          start: 'top 60%',
+          end: 'center center',
+          scrub: false,
+          toggleActions: 'play none none reverse',
+        },
+      });
+
+      // Logo path draw
+      tl.to('#finaleLogo svg path', {
+        strokeDashoffset: 0,
+        duration: 2,
+        ease: 'power2.inOut',
+      })
+      .to('#finaleLogo', {
+        opacity: 1,
+        scale: 1,
+        duration: 1.2,
+        ease: 'back.out(1.7)',
+      }, '-=1.5')
+      .to('#finaleTitle', {
+        opacity: 1,
+        y: 0,
+        duration: 0.8,
+        ease: 'power3.out',
+      }, '-=0.6')
+      .to('#finaleSubtitle', {
+        opacity: 1,
+        duration: 0.6,
+        ease: 'power2.out',
+      }, '-=0.3');
+
+      // Spawn particles
+      createParticles();
+    }
+
+    function createParticles() {
+      const container = document.getElementById('particles');
+      for (let i = 0; i < 40; i++) {
+        const p = document.createElement('div');
+        p.className = 'particle';
+        p.style.left = Math.random() * 100 + '%';
+        p.style.top = Math.random() * 100 + '%';
+        p.style.width = Math.random() * 3 + 1 + 'px';
+        p.style.height = p.style.width;
+        container.appendChild(p);
+
+        gsap.to(p, {
+          opacity: gsap.utils.random(0.2, 0.6),
+          y: gsap.utils.random(-100, 100),
+          x: gsap.utils.random(-50, 50),
+          duration: gsap.utils.random(3, 8),
+          ease: 'sine.inOut',
+          yoyo: true,
+          repeat: -1,
+          delay: gsap.utils.random(0, 3),
+          scrollTrigger: {
+            trigger: '#finale',
+            start: 'top 80%',
+            toggleActions: 'play pause resume pause',
+          },
+        });
+      }
+    }
+
+    // ═══════════ WEB CANVAS (Finale background) ═══════════
+    function initWebCanvas() {
+      const canvas = document.getElementById('webCanvas');
+      const ctx = canvas.getContext('2d');
+      let animId;
+      let nodes = [];
+      let isVisible = false;
+
+      function resize() {
+        canvas.width = canvas.offsetWidth * window.devicePixelRatio;
+        canvas.height = canvas.offsetHeight * window.devicePixelRatio;
+        ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+      }
+      resize();
+      window.addEventListener('resize', resize);
+
+      // Create web nodes
+      function createNodes() {
+        nodes = [];
+        const w = canvas.offsetWidth;
+        const h = canvas.offsetHeight;
+        const cx = w / 2, cy = h / 2;
+
+        // Radial web pattern
+        const rings = 6;
+        const spokes = 16;
+        for (let r = 1; r <= rings; r++) {
+          for (let s = 0; s < spokes; s++) {
+            const angle = (s / spokes) * Math.PI * 2;
+            const radius = (r / rings) * Math.min(w, h) * 0.45;
+            const jitter = Math.random() * 20 - 10;
+            nodes.push({
+              x: cx + Math.cos(angle) * (radius + jitter),
+              y: cy + Math.sin(angle) * (radius + jitter),
+              ring: r,
+              spoke: s,
+              baseX: cx + Math.cos(angle) * radius,
+              baseY: cy + Math.sin(angle) * radius,
+              vx: 0, vy: 0,
+            });
+          }
+        }
+        // Center node
+        nodes.push({ x: cx, y: cy, ring: 0, spoke: 0, baseX: cx, baseY: cy, vx: 0, vy: 0 });
+      }
+      createNodes();
+
+      function drawWeb(progress) {
+        const w = canvas.offsetWidth;
+        const h = canvas.offsetHeight;
+        ctx.clearRect(0, 0, w, h);
+
+        // Draw connections
+        ctx.strokeStyle = `rgba(226, 54, 54, ${0.06 * progress})`;
+        ctx.lineWidth = 0.5;
+
+        const spokes = 16;
+        const rings = 6;
+        const center = nodes[nodes.length - 1];
+
+        // Spoke lines
+        for (let s = 0; s < spokes; s++) {
+          ctx.beginPath();
+          ctx.moveTo(center.x, center.y);
+          for (let r = 0; r < rings; r++) {
+            const node = nodes[r * spokes + s];
+            if (node) ctx.lineTo(node.x, node.y);
+          }
+          ctx.stroke();
+        }
+
+        // Ring connections
+        ctx.strokeStyle = `rgba(200, 200, 200, ${0.04 * progress})`;
+        for (let r = 0; r < rings; r++) {
+          ctx.beginPath();
+          for (let s = 0; s <= spokes; s++) {
+            const node = nodes[r * spokes + (s % spokes)];
+            if (node) {
+              if (s === 0) ctx.moveTo(node.x, node.y);
+              else ctx.lineTo(node.x, node.y);
+            }
+          }
+          ctx.stroke();
+        }
+
+        // Animate nodes slightly
+        nodes.forEach(n => {
+          if (n.ring === 0) return;
+          n.x = n.baseX + Math.sin(Date.now() * 0.001 + n.spoke) * 3;
+          n.y = n.baseY + Math.cos(Date.now() * 0.0012 + n.ring) * 3;
+        });
+      }
+
+      function animate() {
+        if (!isVisible) return;
+        drawWeb(1);
+        animId = requestAnimationFrame(animate);
+      }
+
+      // Observer to start/stop
+      const observer = new IntersectionObserver(entries => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            isVisible = true;
+            animate();
+          } else {
+            isVisible = false;
+            cancelAnimationFrame(animId);
+          }
+        });
+      }, { threshold: 0.1 });
+      observer.observe(canvas);
+    }
+
+    // ═══════════ REVEAL ANIMATIONS ═══════════
+    function initRevealAnimations() {
+      // Reveal up
+      gsap.utils.toArray('.reveal-up').forEach(el => {
+        // Skip elements inside horizontal wrapper (handled separately)
+        if (el.closest('.horizontal-wrapper')) return;
+
+        gsap.to(el, {
+          opacity: 1,
+          y: 0,
+          duration: 1,
+          ease: 'power3.out',
+          scrollTrigger: {
+            trigger: el,
+            start: 'top 85%',
+            toggleActions: 'play none none reverse',
+          },
+        });
+      });
+
+      // Reveal scale
+      gsap.utils.toArray('.reveal-scale').forEach((el, i) => {
+        gsap.to(el, {
+          opacity: 1,
+          scale: 1,
+          duration: 0.8,
+          delay: i * 0.1,
+          ease: 'back.out(1.4)',
+          scrollTrigger: {
+            trigger: el,
+            start: 'top 85%',
+            toggleActions: 'play none none reverse',
+          },
+        });
+      });
+
+      // Web line animations
+      gsap.utils.toArray('.web-line-anim').forEach(el => {
+        ScrollTrigger.create({
+          trigger: el,
+          start: 'top 80%',
+          onEnter: () => el.classList.add('active'),
+          onLeaveBack: () => el.classList.remove('active'),
+        });
+      });
+    }
+
+    // ═══════════ COUNTER ANIMATION ═══════════
+    function initCounters() {
+      const counters = document.querySelectorAll('.stat-number[data-count]');
+      counters.forEach(el => {
+        const target = parseInt(el.dataset.count);
+        if (isNaN(target)) return;
+
+        ScrollTrigger.create({
+          trigger: el,
+          start: 'top 85%',
+          onEnter: () => {
+            gsap.to(el, {
+              innerHTML: target,
+              duration: 2,
+              ease: 'power2.out',
+              snap: { innerHTML: 1 },
+              onUpdate: function () {
+                el.textContent = Math.round(parseFloat(el.textContent)).toLocaleString();
+              },
+            });
+          },
+          once: true,
+        });
+      });
+
+      // Special case: infinity symbol
+      const infinityStat = document.querySelector('.stat-number:not([data-count])');
+      // handled separately — it just stays as ∞
+    }
+
+  </script>
+</body>
+</html>
